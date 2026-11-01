@@ -1,0 +1,7 @@
+# Never upload local env files or build output; Vercel builds fresh and
+# gets the keys from Project Settings → Environment Variables.
+.env*
+!.env.example
+.next
+out
+node_modules

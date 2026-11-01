@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* Palette sampled from Nutty the peanut (public/nutty/*.png). */
+@theme inline {
+  --color-cream: #fff4df; /* page background */
+  --color-shell: #ffe6b8; /* light peanut, soft surfaces */
+  --color-peanut: #f4b455; /* Nutty's body */
+  --color-peanut-dark: #e08a2a; /* shell shading */
+  --color-band: #e3192e; /* headband red — the accent */
+  --color-ink: #2a1508; /* outline brown, used for text and borders */
+  --font-sans: var(--font-nunito), ui-rounded, system-ui, sans-serif;
+  --font-display: var(--font-fredoka), var(--font-nunito), ui-rounded, sans-serif;
+}
+
+html {
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Thick cartoon outline + hard offset shadow, like Nutty's linework. */
+@utility sticker {
+  border: 3px solid var(--color-ink);
+  border-radius: 1.25rem;
+  box-shadow: 4px 4px 0 var(--color-ink);
+}
+
+@utility btn {
+  display: block;
+  width: 100%;
+  border: 3px solid var(--color-ink);
+  border-radius: 1rem;
+  box-shadow: 4px 4px 0 var(--color-ink);
+  padding: 0.75rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition:
+    transform 80ms,
+    box-shadow 80ms;
+  &:active:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 var(--color-ink);
+  }
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+/* Nutty's sweatband: red with a white stripe. */
+@utility headband {
+  background: linear-gradient(
+    180deg,
+    var(--color-band) 0 30%,
+    #fff 30% 46%,
+    var(--color-band) 46% 100%
+  );
+}
