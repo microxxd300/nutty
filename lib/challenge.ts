@@ -64,6 +64,23 @@ export type Summary = {
   daysSurvived: number;
 };
 
+/** The one missed day that can still be confirmed during the next calendar day. */
+export function missedCheckinGraceDay(info: ChallengeInfo, summary: Summary): number | null {
+  if (!summary.isActive) return null;
+
+  if (info.phase === "live" && info.day > 1) {
+    const yesterday = info.day - 1;
+    return summary.byDay.has(yesterday) ? null : yesterday;
+  }
+
+  // November 30 still gets its full one-day grace period on December 1.
+  if (info.phase === "over" && info.today === `${info.year}-12-01`) {
+    return summary.byDay.has(TOTAL_DAYS) ? null : TOTAL_DAYS;
+  }
+
+  return null;
+}
+
 export function summarize(checkins: Pick<Checkin, "date" | "status">[], info: ChallengeInfo): Summary {
   const byDay = new Map<number, Status>();
   for (const c of checkins) {
