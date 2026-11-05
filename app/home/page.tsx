@@ -11,6 +11,7 @@ import { Protected } from "@/components/Protected";
 import { ErrorText, peanutButton, primaryButton, dangerButton, SpeechBubble, Spinner } from "@/components/ui";
 import {
   getChallenge,
+  missedCheckinGraceDay,
   summarize,
   TOTAL_DAYS,
   type ChallengeInfo,
@@ -87,6 +88,15 @@ function HomeScreen() {
     else await load();
   }
 
+  async function catchUpYesterday() {
+    setBusy(true);
+    setError(null);
+    const { error } = await supabase.rpc("check_in_yesterday");
+    setBusy(false);
+    if (error) setError(error.message);
+    else await load();
+  }
+
   if (editing) {
     return (
       <>
@@ -99,6 +109,7 @@ function HomeScreen() {
   if (!checkins) return error ? <ErrorText>{error}</ErrorText> : <Spinner />;
 
   const summary = summarize(checkins, info);
+  const graceDay = missedCheckinGraceDay(info, summary);
   const mood = nuttyMood(info, summary);
 
   return (
@@ -153,6 +164,18 @@ function HomeScreen() {
 
       {/* Check-in */}
       <section className="mt-6">
+        {graceDay !== null && (
+          <div className="sticker mb-4 bg-white p-5">
+            <p className="font-display text-xl font-bold">Missed Day {graceDay}?</p>
+            <p className="mt-1 text-ink/75">
+              If you were still standing, confirm yesterday&apos;s check-in today. This one-day grace expires tomorrow.
+            </p>
+            <button onClick={catchUpYesterday} disabled={busy} className={`${peanutButton} mt-4`}>
+              {busy ? "Saving..." : "I was still standing"}
+            </button>
+          </div>
+        )}
+
         {info.phase === "live" && summary.isActive && !summary.checkedInToday && (
           <div className="grid gap-4">
             <button onClick={() => checkIn("ok")} disabled={busy} className={`${peanutButton} py-6 text-2xl`}>

@@ -8,7 +8,8 @@
 --    * RLS is enabled on every table.
 --    * Clients can only SELECT, plus insert/update their OWN profile.
 --    * Every other write goes through SECURITY DEFINER functions:
---        check_in(status)        — server picks the date, no backdating
+--        check_in(status)        — server picks today's date
+--        check_in_yesterday()    — one-day grace for a missed check-in
 --        create_group(group_name) — server makes the invite code, max 5
 --        join_group(code)        — lookup by code, max 50 members
 -- =====================================================================
@@ -261,7 +262,69 @@ $$;
 
 
 -- ---------------------------------------------------------------------
--- 6. RPC: create_group(group_name) — max 5 groups per user
+-- 6. RPC: check_in_yesterday() — one-day grace for a missed check-in
+-- ---------------------------------------------------------------------
+
+create or replace function public.check_in_yesterday()
+returns public.checkins
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  uid       uuid := auth.uid();
+  tz        text;
+  today     date;
+  nov1      date;
+  missed    date;
+  result    public.checkins;
+begin
+  if uid is null then
+    raise exception 'You need to be signed in.';
+  end if;
+
+  -- Use the same profile lock as check_in() so catch-up and today's
+  -- check-in cannot race each other.
+  select p.timezone into tz from public.profiles p where p.id = uid for update;
+  if not found then
+    raise exception 'Set up your profile first.';
+  end if;
+
+  today := (now() at time zone tz)::date;
+  nov1   := make_date(extract(year from today)::int, 11, 1);
+  missed := today - 1;
+
+  -- November 2 through December 1 are the only dates on which the
+  -- previous day belongs to this year's challenge.
+  if today < nov1 + 1 or today > nov1 + 30 then
+    raise exception 'Yesterday is not available for a late check-in.';
+  end if;
+
+  if exists (
+    select 1 from public.checkins c
+    where c.user_id = uid and c.date = missed
+  ) then
+    raise exception 'You already checked in for yesterday.';
+  end if;
+
+  if exists (
+    select 1 from public.checkins c
+    where c.user_id = uid and c.status = 'fell' and c.date <= missed
+  ) then
+    raise exception 'You had already fallen by yesterday.';
+  end if;
+
+  insert into public.checkins (user_id, date, status)
+  values (uid, missed, 'ok')
+  returning * into result;
+
+  return result;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- 7. RPC: create_group(group_name) — max 5 groups per user
 -- ---------------------------------------------------------------------
 
 create or replace function public.create_group(group_name text)
@@ -324,7 +387,7 @@ $$;
 
 
 -- ---------------------------------------------------------------------
--- 7. RPC: join_group(code) — max 50 members per group
+-- 8. RPC: join_group(code) — max 50 members per group
 -- ---------------------------------------------------------------------
 
 create or replace function public.join_group(code text)
@@ -372,7 +435,7 @@ $$;
 
 
 -- ---------------------------------------------------------------------
--- 8. Function privileges — signed-in users only
+-- 9. Function privileges — signed-in users only
 -- ---------------------------------------------------------------------
 
 revoke execute on function
@@ -380,6 +443,7 @@ revoke execute on function
   public.is_group_member(uuid),
   public.shares_group_with(uuid),
   public.check_in(text),
+  public.check_in_yesterday(),
   public.create_group(text),
   public.join_group(text)
 from public, anon;
@@ -389,6 +453,7 @@ grant execute on function
   public.is_group_member(uuid),
   public.shares_group_with(uuid),
   public.check_in(text),
+  public.check_in_yesterday(),
   public.create_group(text),
   public.join_group(text)
 to authenticated;

@@ -89,11 +89,11 @@ There is no server, so Supabase enforces every rule:
 
 - **RLS on every table.** You can read only your own data plus the data of people who share a group with you (`is_group_member()` / `shares_group_with()`). There is no way to list or browse all groups.
 - **Writes go through functions.** Clients can insert or update only their own profile. Check-ins, group creation and joining go through `SECURITY DEFINER` functions. Nothing can be deleted.
-- **No backdating.** `check_in(status)` works out "today" on the server from your saved timezone. It accepts only Nov 1–30, one check-in per day, and nothing after a fall.
+- **Server-controlled dates.** `check_in(status)` works out "today" from your saved timezone. `check_in_yesterday()` provides one grace day and can only confirm that you were still standing yesterday. Arbitrary backdating is not allowed.
 - **Limits:** 5 groups created per user and 50 members per group. Both are race-safe thanks to row locks.
 - **Validation:** names are checked in the UI and by `CHECK` constraints in the database. Avatars must come from a fixed emoji list. All user text is rendered as plain React text.
 
-Ranking: active players first, then longest streak, then whoever joined the group first. A **streak** is consecutive "still standing" check-ins. A missed day doesn't knock you out, but it does reset your streak.
+Ranking: active players first, then longest streak, then whoever joined the group first. A **streak** is consecutive "still standing" check-ins. A missed day doesn't knock you out. You can confirm it on the following day; after that grace period, it resets your streak.
 
 ## Nutty the mascot
 
